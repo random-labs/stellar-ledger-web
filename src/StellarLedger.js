@@ -37,9 +37,9 @@ StellarLedger = class {
         const signatureBase = tx.signatureBase();
         const result = await this.application.signTransaction(this.path, signatureBase);
 
-        const keypair = StellarSdk.Keypair.fromPublicKey(this.publicKey);
+        const keypair = StellarBase.Keypair.fromPublicKey(this.publicKey);
         const hint = keypair.signatureHint();
-        const decorated = new StellarSdk.xdr.DecoratedSignature({
+        const decorated = new StellarBase.xdr.DecoratedSignature({
             hint: hint, signature: result.signature
         });
         tx.signatures.push(decorated);
