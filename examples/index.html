@@ -1,0 +1,90 @@
+<html>
+<head>
+    <title>StellarLedger Demo</title>
+    <style>
+        div {
+            font-family:sans-serif;
+            border: solid 1px #888;
+            margin:20px;
+            padding:10px;
+            word-break: break-word;
+        }
+        .error {
+            border-color:#f00;
+        }
+        .xdr {
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/0.11.0/stellar-sdk.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+
+    <script src="../dist/StellarLedger.js"></script>
+    <script>
+
+        StellarSdk.Network.useTestNetwork();
+        const horizon = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+
+
+        async function demo() {
+
+            $('div:not(.keep)').remove();
+            const ledger = new StellarLedger( $('#path').val() );
+            const jQBody = $('body');
+            let account = '';
+
+            try {
+                
+                const publicKey = await ledger.getPublicKey();
+                jQBody.append('<div><strong>Your public key: </strong><hr>' + publicKey + '</div>');
+
+
+                try {
+                    account = await horizon.loadAccount(publicKey);
+                    jQBody.append('<div>You have ' + account.balances[0].balance + 'XLM</div>');
+                } catch (e) {
+                    jQBody.append('<div>Account error: ' + e.message  + ' (<a href="https://friendbot.stellar.org/?addr=' + publicKey + '">Get some testnet lumens from stellar friendbot now.</a>)</div>');
+                    return;
+                }
+                let tx = new StellarSdk.TransactionBuilder(account)
+                    .addOperation(StellarSdk.Operation.payment({
+                        asset: StellarSdk.Asset.native(),
+                        destination: 'GBZY37LVGIB4CLOT2KOOAMIZFRY74DIHLPKG346BZYSG6XIETJJWEYHH',
+                        amount: '2.99'
+                    }))
+                    .build();
+
+
+                jQBody.append('<div><strong>Look at your Ledger, it asks you to approve this transaction: </strong><hr><span class="xdr">' + tx.toEnvelope().toXDR('base64') + '</span></div>');
+                await ledger.sign(tx);
+                jQBody.append('<div><strong>This is the signed transaction that I\'m now submitting to the network right now:</strong><hr><span class="xdr">' + tx.toEnvelope().toXDR('base64') + '</span></div>');
+
+                const txresult = await horizon.submitTransaction(tx);
+
+                jQBody.append('<div><strong>Transaction was submitted to the network, its hash is: </strong> ' + txresult.hash + '</div>');
+
+                account = await horizon.loadAccount(publicKey);
+                jQBody.append('<div>You now have ' + account.balances[0].balance + 'XLM</div>');
+
+
+            } catch (e) {
+                jQBody.append('<div class="error">' + e.message + '</div>');
+            }
+
+        }
+
+        $(document).on('click', '.xdr', function() {
+            window.open('https://www.stellar.org/laboratory/#xdr-viewer?input=' + encodeURI($(this).html()) +'&type=TransactionEnvelope&network=test', '_blank');
+        });
+    </script>
+</head>
+<body>
+
+    <div class="keep">
+        <input id="path" value="44'/148'/0'" title="path">
+        <input type="button" value="Sign in with Ledger" onClick="demo()">
+    </div>
+
+</body>
+</html>
